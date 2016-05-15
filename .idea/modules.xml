@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/system-programming.iml" filepath="$PROJECT_DIR$/system-programming.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/system-programming.iml" filepath="$PROJECT_DIR$/.idea/modules/system-programming.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/system-programming_main.iml" filepath="$PROJECT_DIR$/.idea/modules/system-programming_main.iml" group="system-programming" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/system-programming_test.iml" filepath="$PROJECT_DIR$/.idea/modules/system-programming_test.iml" group="system-programming" />
     </modules>
   </component>
 </project>
