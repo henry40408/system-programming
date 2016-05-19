@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -15,7 +16,18 @@ class Declaration implements Node {
         String currentToken = context.currentToken();
         final int firstSpace = currentToken.indexOf(' ');
         final String rest = currentToken.substring(firstSpace + 1);
-        System.out.println("declaration -> " + rest);
+        final String[] statements = rest.split(",");
+
+        for (String statement : statements) {
+            final int equation = statement.indexOf('=');
+            if (equation > 0) {
+                final String variable = statement.substring(0, equation);
+                final String expression = statement.substring(equation + 1);
+                System.out.println(String.format("assign %s to %s", expression, variable));
+            } else {
+                System.out.println(String.format("%8s RESW 1", statement));
+            }
+        }
     }
 
     @Override
@@ -46,8 +58,6 @@ class Program implements Node {
     @Override
     public void parse(Context context) {
         while (context.currentToken() != null) {
-            // String currentToken = context.currentToken();
-            // System.out.println("program -> " + currentToken);
             Statement statement = new Statement();
             statement.parse(context);
             context.nextToken();
@@ -62,6 +72,8 @@ class Program implements Node {
 
 class Context {
     final private Iterator<String> tokens;
+    final private HashMap<String, Integer> memory;
+
     private String currentToken;
 
     Context(String code) {
@@ -70,6 +82,7 @@ class Context {
             tokenList.add(token);
         }
         tokens = tokenList.iterator();
+        memory = new HashMap<>();
         nextToken();
     }
 
@@ -91,9 +104,5 @@ class Context {
             System.err.println(String.format(format, token, currentToken));
         }
         nextToken();
-    }
-
-    int currentNumber() {
-        return Integer.parseInt(currentToken);
     }
 }
