@@ -1,7 +1,4 @@
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,8 +27,8 @@ class Expression implements Node {
             if ("+-*/".indexOf(segment) != -1) {
                 if (result.isEmpty()) {
                     final String operand = stack.removeLast();
-                    result.add(String.format(COMMAND_FORMAT, "", "LDA", operand));
-                    result.add(String.format(COMMAND_FORMAT, "", "STA", "TEMP"));
+                    result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + operand));
+                    result.add(String.format(COMMAND_FORMAT, "", "MOV", "TEMP, AX"));
                 }
 
                 String operator = "";
@@ -46,14 +43,14 @@ class Expression implements Node {
                 }
 
                 String operand = stack.removeLast();
-                result.add(String.format(COMMAND_FORMAT, "", "LDA", "TEMP"));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, TEMP"));
                 result.add(String.format(COMMAND_FORMAT, "", operator, operand));
-                result.add(String.format(COMMAND_FORMAT, "", "STA", "TEMP"));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", "TEMP, AX"));
             } else {
                 if (isNumeric(segment)) {
                     stack.add("#" + segment);
                 } else {
-                    if (!context.symbols.contains(segment)) {
+                    if (!context.symbols.containsKey(segment)) {
                         String format = "Undeclared symbol: %s in %s=%s";
                         throw new RuntimeException(String.format(format, segment, variable, expression));
                     }
@@ -64,12 +61,12 @@ class Expression implements Node {
 
         while (!stack.isEmpty()) {
             final String operand = stack.removeLast();
-            result.add(String.format(COMMAND_FORMAT, "", "LDA", operand));
-            result.add(String.format(COMMAND_FORMAT, "", "STA", "TEMP"));
+            result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + operand));
+            result.add(String.format(COMMAND_FORMAT, "", "MOV", "TEMP, AX"));
         }
 
-        result.add(String.format(COMMAND_FORMAT, "", "LDA", "TEMP"));
-        result.add(String.format(COMMAND_FORMAT, "", "STA", variable));
+        result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, TEMP"));
+        result.add(String.format(COMMAND_FORMAT, "", "MOV", variable + ", AX"));
 
         return result.toArray(new String[result.size()]);
     }
@@ -152,15 +149,19 @@ class Declaration implements Node {
                 final String variable = statement.substring(0, equation);
 
                 final String expression = statement.substring(equation + 1);
-                final Expression factor = new Expression();
+                if (Expression.isNumeric(expression)) {
+                    context.symbols.put(variable, Integer.parseInt(expression, 10));
+                } else {
+                    final Expression factor = new Expression();
 
-                for (String line : factor.parse(context, variable, expression)) {
-                    result.add(line);
+                    for (String line : factor.parse(context, variable, expression)) {
+                        result.add(line);
+                    }
+
+                    context.symbols.put(variable, null);
                 }
-
-                context.symbols.add(variable);
             } else {
-                context.symbols.add(statement);
+                context.symbols.put(statement, null);
             }
         }
 
@@ -215,8 +216,13 @@ class Program implements Node {
 
         result.add("         START");
         result.add(String.format(COMMAND_FORMAT, "TEMP", "RESW", "1"));
-        for (String symbol : context.symbols) {
-            result.add(String.format(COMMAND_FORMAT, symbol, "RESW", "1"));
+        for (String symbol : context.symbols.keySet()) {
+            Integer value = context.symbols.get(symbol);
+            if (value == null) {
+                result.add(String.format(COMMAND_FORMAT, symbol, "RESW", "1"));
+            } else {
+                result.add(String.format(COMMAND_FORMAT, symbol, "WORD", String.valueOf(value)));
+            }
         }
         for (String line : lines) {
             result.add(line);
@@ -228,7 +234,7 @@ class Program implements Node {
 }
 
 class Context {
-    final public LinkedList<String> symbols;
+    final public HashMap<String, Integer> symbols;
 
     final private Iterator<String> tokens;
 
@@ -240,7 +246,7 @@ class Context {
             tokenList.add(token);
         }
         tokens = tokenList.iterator();
-        symbols = new LinkedList<>();
+        symbols = new HashMap<>();
         nextToken();
     }
 
