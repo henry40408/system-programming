@@ -9,6 +9,16 @@
 
 // Apply the java plugin to add support for Java
 apply plugin: 'java'
+apply plugin: 'application'
+
+jar {
+    archiveName = "compiler.jar"
+    manifest {
+        attributes "Main-Class": "tw.edu.nccu.cs.system_programming.CompilerRunner"
+    }
+}
+
+mainClassName = "tw.edu.nccu.cs.system_programming.CompilerRunner"
 
 // In this section you declare where to find the dependencies of your project
 repositories {

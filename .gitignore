@@ -61,7 +61,7 @@ fabric.properties
 .mtj.tmp/
 
 # Package Files #
-*.jar
+#*.jar
 *.war
 *.ear
 
@@ -71,7 +71,8 @@ hs_err_pid*
 
 ### Gradle ###
 .gradle
-build/
+# build/
+build/tmp/
 
 # Ignore Gradle GUI config
 gradle-app.setting
