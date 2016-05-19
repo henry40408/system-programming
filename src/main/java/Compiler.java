@@ -1,30 +1,84 @@
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 interface Node {
-    void parse(Context context);
+    String COMMAND_FORMAT = "%8s %-4s %s";
 
-    void execute();
+    String[] parse(Context context);
 }
 
 class Expression implements Node {
 
     @Override
-    public void parse(Context context) {
-        throw new NotImplementedException();
+    public String[] parse(Context context) {
+        throw new RuntimeException("Not implemented");
     }
 
-    @Override
-    public void execute() {
-        // empty
+    public String[] parse(Context context, String variable, String expression) {
+        return resolve(context, variable, toPostfix(expression), expression);
     }
 
-    public void parse(Context context, String expression) {
-        System.out.println(toPostfix(expression));
+    private String[] resolve(Context context, String variable, String[] postfix, String expression) {
+        final List<String> result = new ArrayList<>();
+        final LinkedList<String> stack = new LinkedList<>();
+
+        for (String segment : postfix) {
+            if ("+-*/".indexOf(segment) != -1) {
+                if (result.isEmpty()) {
+                    final String operand = stack.removeLast();
+                    result.add(String.format(COMMAND_FORMAT, "", "LDA", operand));
+                    result.add(String.format(COMMAND_FORMAT, "", "STA", "TEMP"));
+                }
+
+                String operator = "";
+                if (segment.equals("+")) {
+                    operator = "ADD";
+                } else if (segment.equals("-")) {
+                    operator = "SUB";
+                } else if (segment.equals("*")) {
+                    operator = "MUL";
+                } else if (segment.equals("/")) {
+                    operator = "DIV";
+                }
+
+                String operand = stack.removeLast();
+                result.add(String.format(COMMAND_FORMAT, "", "LDA", "TEMP"));
+                result.add(String.format(COMMAND_FORMAT, "", operator, operand));
+                result.add(String.format(COMMAND_FORMAT, "", "STA", "TEMP"));
+            } else {
+                if (isNumeric(segment)) {
+                    stack.add("#" + segment);
+                } else {
+                    if (!context.symbols.contains(segment)) {
+                        String format = "Undeclared symbol: %s in %s=%s";
+                        throw new RuntimeException(String.format(format, segment, variable, expression));
+                    }
+                    stack.add(segment);
+                }
+            }
+        }
+
+        while (!stack.isEmpty()) {
+            final String operand = stack.removeLast();
+            result.add(String.format(COMMAND_FORMAT, "", "LDA", operand));
+            result.add(String.format(COMMAND_FORMAT, "", "STA", "TEMP"));
+        }
+
+        result.add(String.format(COMMAND_FORMAT, "", "LDA", "TEMP"));
+        result.add(String.format(COMMAND_FORMAT, "", "STA", variable));
+
+        return result.toArray(new String[result.size()]);
     }
 
-    private String toPostfix(String infix) {
+    public static boolean isNumeric(String str) {
+        return str.matches("-?\\d+(\\.\\d+)?");
+    }
+
+    private String[] toPostfix(String infix) {
         final String[] chopped = chop(infix);
         final LinkedList<String> stack = new LinkedList<>();
         final LinkedList<String> output = new LinkedList<>();
@@ -51,7 +105,7 @@ class Expression implements Node {
             output.add(stack.removeLast());
         }
 
-        return Arrays.toString(output.toArray());
+        return output.toArray(new String[output.size()]);
     }
 
     private String[] chop(String infix) {
@@ -78,16 +132,16 @@ class Expression implements Node {
     }
 
     private static int priority(String op) {
-        return op.equals("+") || op.equals("-") ? 1 :
-                op.equals("*") || op.equals("/") ? 2 : 0;
+        return op.equals("+") || op.equals("-") ? 1 : op.equals("*") || op.equals("/") ? 2 : 0;
     }
 }
 
 class Declaration implements Node {
 
     @Override
-    public void parse(Context context) {
-        String currentToken = context.currentToken();
+    public String[] parse(Context context) {
+        final List<String> result = new ArrayList<>();
+        final String currentToken = context.currentToken();
         final int firstSpace = currentToken.indexOf(' ');
         final String rest = currentToken.substring(firstSpace + 1);
         final String[] statements = rest.split(",");
@@ -96,60 +150,85 @@ class Declaration implements Node {
             final int equation = statement.indexOf('=');
             if (equation > 0) {
                 final String variable = statement.substring(0, equation);
-                final String expression = statement.substring(equation + 1);
-                System.out.println(String.format("assign %s to %s", expression, variable));
 
-                final Expression expression1 = new Expression();
-                expression1.parse(context, expression);
+                final String expression = statement.substring(equation + 1);
+                final Expression factor = new Expression();
+
+                for (String line : factor.parse(context, variable, expression)) {
+                    result.add(line);
+                }
+
+                context.symbols.add(variable);
             } else {
-                System.out.println(String.format("%8s RESW 1", statement));
-                context.memory.add(statement);
+                context.symbols.add(statement);
             }
         }
-    }
 
-    @Override
-    public void execute() {
-        // empty
+        return result.toArray(new String[result.size()]);
     }
 }
 
 class Statement implements Node {
-
     @Override
-    public void parse(Context context) {
-        System.out.println("statement -> " + context.currentToken());
+    public String[] parse(Context context) {
+        final List<String> lines = new ArrayList<>();
         final String[] tokens = context.currentToken().split("\\s+");
         if (tokens[0].equals("INT")) {
             final Declaration declaration = new Declaration();
-            declaration.parse(context);
+            for (String line : declaration.parse(context)) {
+                lines.add(line);
+            }
+        } else if (context.currentToken().contains("PRINT")) {
+            final int left = context.currentToken().indexOf("(");
+            final int right = context.currentToken().indexOf(")");
+            final String variable = context.currentToken().substring(left + 1, right);
+            lines.add(String.format(COMMAND_FORMAT, "", "WRT", variable));
+        } else if (context.currentToken().contains("=")) {
+            final String currentToken = context.currentToken();
+
+            final int equation = currentToken.indexOf("=");
+            final String variable = currentToken.substring(0, equation);
+            final String expression = currentToken.substring(equation + 1);
+
+            final Expression factor = new Expression();
+            for (String line : factor.parse(context, variable, expression)) {
+                lines.add(line);
+            }
         }
-    }
-
-    @Override
-    public void execute() {
-
+        return lines.toArray(new String[lines.size()]);
     }
 }
 
 class Program implements Node {
     @Override
-    public void parse(Context context) {
+    public String[] parse(Context context) {
+        final List<String> result = new ArrayList<>();
+        final List<String> lines = new ArrayList<>();
+
         while (context.currentToken() != null) {
             Statement statement = new Statement();
-            statement.parse(context);
+            for (String line : statement.parse(context)) {
+                lines.add(line);
+            }
             context.nextToken();
         }
-    }
 
-    @Override
-    public void execute() {
-        // empty
+        result.add("         START");
+        result.add(String.format(COMMAND_FORMAT, "TEMP", "RESW", "1"));
+        for (String symbol : context.symbols) {
+            result.add(String.format(COMMAND_FORMAT, symbol, "RESW", "1"));
+        }
+        for (String line : lines) {
+            result.add(line);
+        }
+        result.add("         END");
+
+        return result.toArray(new String[result.size()]);
     }
 }
 
 class Context {
-    final public LinkedList<String> memory;
+    final public LinkedList<String> symbols;
 
     final private Iterator<String> tokens;
 
@@ -161,7 +240,7 @@ class Context {
             tokenList.add(token);
         }
         tokens = tokenList.iterator();
-        memory = new LinkedList<>();
+        symbols = new LinkedList<>();
         nextToken();
     }
 
@@ -180,7 +259,7 @@ class Context {
     void skipToken(String token) {
         if (!token.equals(currentToken)) {
             String format = "Warning: %s is expected, but %s is found.";
-            System.err.println(String.format(format, token, currentToken));
+            throw new RuntimeException(String.format(format, token, currentToken));
         }
         nextToken();
     }
