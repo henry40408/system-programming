@@ -23,7 +23,7 @@ class Expression implements Node {
                 final String firstOperand = stack.removeLast();
                 final String secondOperand = stack.removeLast();
 
-                result.add(String.format(COMMAND_FORMAT, "", "MOV", firstOperand + ", AX"));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", secondOperand + ", AX"));
                 String operator = "";
                 if (segment.equals("+")) {
                     operator = "ADD";
@@ -34,15 +34,15 @@ class Expression implements Node {
                 } else if (segment.equals("/")) {
                     operator = "DIV";
                 }
-                result.add(String.format(COMMAND_FORMAT, "", "MOV", secondOperand + ", BX"));
-                result.add(String.format(COMMAND_FORMAT, "", operator, "BX, AX"));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", firstOperand + ", BX"));
+                result.add(String.format(COMMAND_FORMAT, "", operator, "AX, BX"));
 
                 final String tempVariable = "TEMP_" + tempVariableIndex;
                 context.symbols.put(tempVariable, null);
                 stack.add(tempVariable);
                 tempVariableIndex += 1;
 
-                result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + tempVariable));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", "BX, " + tempVariable));
             } else {
                 if (isNumeric(segment)) {
                     stack.add("#" + segment);
