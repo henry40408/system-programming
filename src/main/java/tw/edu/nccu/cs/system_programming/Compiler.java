@@ -23,7 +23,7 @@ class Expression implements Node {
                 final String firstOperand = stack.removeLast();
                 final String secondOperand = stack.removeLast();
 
-                result.add(String.format(COMMAND_FORMAT, "", "MOV", secondOperand + ", AX"));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", firstOperand + ", AX"));
                 String operator = "";
                 if (segment.equals("+")) {
                     operator = "ADD";
@@ -34,7 +34,8 @@ class Expression implements Node {
                 } else if (segment.equals("/")) {
                     operator = "DIV";
                 }
-                result.add(String.format(COMMAND_FORMAT, "", operator, firstOperand + ", AX"));
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", secondOperand + ", BX"));
+                result.add(String.format(COMMAND_FORMAT, "", operator, "BX, AX"));
 
                 final String tempVariable = "TEMP_" + tempVariableIndex;
                 context.symbols.put(tempVariable, null);

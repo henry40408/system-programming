@@ -10,17 +10,21 @@
      FFF RESW 1
   TEMP_4 RESW 1
   TEMP_3 RESW 1
-         MOV  AAA, AX
-         MUL  BBB, AX
+         MOV  BBB, AX
+         MOV  AAA, BX
+         MUL  BX, AX
          MOV  AX, TEMP_1
-         MOV  CCC, AX
-         DIV  DDD, AX
+         MOV  DDD, AX
+         MOV  CCC, BX
+         DIV  BX, AX
          MOV  AX, TEMP_2
-         MOV  TEMP_1, AX
-         ADD  TEMP_2, AX
+         MOV  TEMP_2, AX
+         MOV  TEMP_1, BX
+         ADD  BX, AX
          MOV  AX, TEMP_3
-         MOV  TEMP_3, AX
-         SUB  EEE, AX
+         MOV  EEE, AX
+         MOV  TEMP_3, BX
+         SUB  BX, AX
          MOV  AX, TEMP_4
          MOV  TEMP_4, AX
          MOV  AX, FFF
