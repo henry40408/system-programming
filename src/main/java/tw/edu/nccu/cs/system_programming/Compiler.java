@@ -16,15 +16,14 @@ class Expression implements Node {
     private String[] resolve(Context context, String variable, String[] postfix, String expression) {
         final List<String> result = new ArrayList<>();
         final LinkedList<String> stack = new LinkedList<>();
+        int tempVariableIndex = 1;
 
         for (String segment : postfix) {
             if ("+-*/".indexOf(segment) != -1) {
-                if (result.isEmpty()) {
-                    final String operand = stack.removeLast();
-                    result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + operand));
-                    result.add(String.format(COMMAND_FORMAT, "", "MOV", "TEMP, AX"));
-                }
+                final String firstOperand = stack.removeLast();
+                final String secondOperand = stack.removeLast();
 
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", secondOperand + ", AX"));
                 String operator = "";
                 if (segment.equals("+")) {
                     operator = "ADD";
@@ -35,11 +34,14 @@ class Expression implements Node {
                 } else if (segment.equals("/")) {
                     operator = "DIV";
                 }
+                result.add(String.format(COMMAND_FORMAT, "", operator, firstOperand + ", AX"));
 
-                String operand = stack.removeLast();
-                result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, TEMP"));
-                result.add(String.format(COMMAND_FORMAT, "", operator, operand));
-                result.add(String.format(COMMAND_FORMAT, "", "MOV", "TEMP, AX"));
+                final String tempVariable = "TEMP_" + tempVariableIndex;
+                context.symbols.put(tempVariable, null);
+                stack.add(tempVariable);
+                tempVariableIndex += 1;
+
+                result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + tempVariable));
             } else {
                 if (isNumeric(segment)) {
                     stack.add("#" + segment);
@@ -55,12 +57,9 @@ class Expression implements Node {
 
         while (!stack.isEmpty()) {
             final String operand = stack.removeLast();
-            result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + operand));
-            result.add(String.format(COMMAND_FORMAT, "", "MOV", "TEMP, AX"));
+            result.add(String.format(COMMAND_FORMAT, "", "MOV", operand + ", AX"));
+            result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, " + variable));
         }
-
-        result.add(String.format(COMMAND_FORMAT, "", "MOV", "AX, TEMP"));
-        result.add(String.format(COMMAND_FORMAT, "", "MOV", variable + ", AX"));
 
         return result.toArray(new String[result.size()]);
     }
@@ -69,7 +68,7 @@ class Expression implements Node {
         return str.matches("-?\\d+(\\.\\d+)?");
     }
 
-    private String[] toPostfix(String infix) {
+    private static String[] toPostfix(String infix) {
         final String[] chopped = chop(infix);
         final LinkedList<String> stack = new LinkedList<>();
         final LinkedList<String> output = new LinkedList<>();
@@ -99,7 +98,7 @@ class Expression implements Node {
         return output.toArray(new String[output.size()]);
     }
 
-    private String[] chop(String infix) {
+    private static String[] chop(String infix) {
         final LinkedList<String> stack = new LinkedList<>();
         String gathered = "";
 
